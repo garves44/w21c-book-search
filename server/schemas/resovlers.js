@@ -42,7 +42,9 @@ const resolvers = {
       //create a user with what ever args are passed
       const user = await User.create(args);
       //sign the token with the user info
+      console.log("before token");
       const token = signToken(user);
+      console.log("after token", token);
 
       return { user, token };
     },
