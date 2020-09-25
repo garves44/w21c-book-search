@@ -5,20 +5,32 @@ const { signToken } = require("../utils/auth");
 
 const resolvers = {
   Query: {
-    me: async (parent, args, { user }) => {
-      // user is destructured out of context
-      if (user) {
+    me: async (parent, args, context) => {
+      // user is being used from context
+      if (context.user) {
         //get user data into a variable removes password
-        const data = await User.findOne({ _id: user._id }).select(
+        const userData = await User.findOne({ _id: context.user._id }).select(
           "-__ -password"
         );
-        return data;
+        return userData;
       }
       throw new AuthenticationError("Login Please!");
     },
   },
 
   Mutation: {
+    //addUser takes parents and args
+    addUser: async (parent, args) => {
+      //create a user with what ever args are passed
+      const user = await User.create(args);
+      //sign the token with the user info
+      console.log("before token");
+      const token = signToken(user);
+      console.log("after token", token);
+
+      return { user, token };
+    },
+
     //Mutation for login takes parent {email, password} are destructured out of args
     login: async (parent, { email, password }) => {
       const user = await User.findOne({ email });
@@ -37,37 +49,25 @@ const resolvers = {
       return { user, token };
     },
 
-    //addUser takes parents and args
-    addUser: async (parent, args) => {
-      //create a user with what ever args are passed
-      const user = await User.create(args);
-      //sign the token with the user info
-      console.log("before token");
-      const token = signToken(user);
-      console.log("after token", token);
-
-      return { user, token };
-    },
-
     //saveBook takes parent, {input} destructured from args, {user} destructured from context
-    saveBook: async (parent, { input }, { user }) => {
+    saveBook: async (parent, { input }, context) => {
       //if logged in will update the saved books for the user
-      if (user) {
+      if (context.user) {
         const saveUserBooks = await User.findByIdAndUpdate(
-          { _id: user._id },
+          { _id: context.user._id },
           { $push: { savedBooks: input } },
           { new: true, runValidators: true }
         );
-        return saveUserBooks;
+        return { saveUserBooks };
       }
       throw new AuthenticationError("Login Please");
     },
 
     //removeBook takes parent, {bookId} destructured from args, {user} destructured from context
-    removeBook: async (parent, { bookId }, { user }) => {
+    removeBook: async (parent, { bookId }, context) => {
       //if logged in will remove book from saved list of books for user
       const saveUserBooks = await User.findByIdAndDelete(
-        { _id: user._id },
+        { _id: context.user._id },
         {
           $pull: { savedBooks: { bookId: bookId } },
         },
